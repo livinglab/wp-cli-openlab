@@ -120,86 +120,7 @@ class OpenLab_Command extends WP_CLI_Command {
 	}
 
 	/**
-	 * Prepare a major update manifest and blog post.
-	 *
-	 * ## OPTIONS
-	 *
-	 * [--version=<version>]
-	 * : The version number of the major release. If not provided, will be
-	 * inferred from CAC_VERSION.
-	 *
-	 * [--date=<date>]
-	 * : The date for the major release. If not provided, will be assumed
-	 * to be the 21st of the current month.
-	 */
-	public function prepare_major_update( $args, $assoc_args ) {
-		$types = array( 'plugin', 'theme' );
-
-		$update_data = array(
-			'header' => '',
-			'data' => array(),
-		);
-
-		if ( ! isset( $assoc_args['version'] ) ) {
-			$version = 'x.y.z';
-			if ( defined( 'CAC_VERSION' ) ) {
-				if ( preg_match( '/^[0-9]+\.[0-9]+\.([0-9]+)/', CAC_VERSION, $matches ) ) {
-					$z = $matches[1];
-					$new_z = (string) $z + 2;
-
-					$cac_v_a = explode( '.', CAC_VERSION );
-					$cac_v_a[2] = $new_z;
-					$assoc_args['version'] = implode( '.', $cac_v_a );
-				}
-			}
-		}
-
-		// Infer that release date is 21st of this month.
-		if ( ! isset( $assoc_args['date'] ) ) {
-			$assoc_args['date'] = date( 'Y-m-21' );
-		}
-
-		WP_CLI::log( sprintf(
-			'Generating data for CAC %s, scheduled for release on %s. If this is incorrect, please use the --version and --date options to specify a version and date.',
-			$assoc_args['version'],
-			$assoc_args['date']
-		) );
-
-		$this->set_up_blacklist( $assoc_args );
-
-		foreach ( $types as $type ) {
-			$data = $this->prepare_major_update_for_type( $type );
-			WP_CLI::log( sprintf( "Identified %s items of type '%s' with major updates available.", count( $data ), $type ) );
-			$update_data['data'][ $type ] = $data;
-		}
-
-		$json_path = ABSPATH . '.cac-major-update.json';
-
-		$update_data['header'] = sprintf( 'CAC major upgrades for %s', $assoc_args['date'] );
-		file_put_contents( $json_path, json_encode( $update_data, JSON_PRETTY_PRINT ) );
-		WP_CLI::log( sprintf( 'Saved results to %s.', $json_path ) );
-
-		$blog_post = $this->generate_major_update_blog_post( $update_data, $assoc_args );
-
-		WP_CLI::log( '' );
-		WP_CLI::log( "Don't forget a blog post. Title it \"{$blog_post['title']}\". Here's a draft:" );
-		WP_CLI::log( '' );
-		WP_CLI::log( '===' );
-		WP_CLI::log( '' );
-		WP_CLI::log( $blog_post['text'] );
-		WP_CLI::log( '' );
-		WP_CLI::log( '===' );
-		WP_CLI::log( '' );
-
-		WP_CLI::log( 'Don\'t forget to manually check WooThemes for available updates.' );
-		WP_CLI::log( 'Also, don\'t forget to manually check https://wpcom-themes.svn.automattic.com for updates to "imbalance2" and "manifest".' );
-		WP_CLI::log( 'Also, don\'t forget to manually check http://themetrust.com for updates to "reveal".' );
-
-		WP_CLI::success( 'All done! Be sure to review the release manifest (.cac-major-update.json) before checking into the repo.' );
-	}
-
-	/**
-	 * Perform major updates as previously prepared by prepare_major_release.
+	 * Perform updates as previously prepared by prepare_update.
 	 *
 	 * ## OPTIONS
 	 *
@@ -209,7 +130,10 @@ class OpenLab_Command extends WP_CLI_Command {
 	 * [--exclude-themes=<themes>]
 	 * : Comma-separated list of theme slugs to be excluded.
 	 */
-	public function do_major_update( $args, $assoc_args ) {
+	public function do_update( $args, $assoc_args ) {
+		WP_CLI::error( 'Not yet implemented.' );
+		return;
+
 		$json_path = ABSPATH . '.cac-major-update.json';
 
 		if ( ! file_exists( $json_path ) ) {
@@ -226,60 +150,6 @@ class OpenLab_Command extends WP_CLI_Command {
 		unlink( $json_path );
 		WP_CLI::log( sprintf( 'Deleted %s.', $json_path ) );
 		WP_CLI::success( 'Major updates completed.' );
-	}
-
-	/**
-	 * Perform minor updates.
-	 *
-	 * ## OPTIONS
-	 *
-	 * [--exclude-plugins=<plugins>]
-	 * : Comma-separated list of plugin slugs to be excluded.
-	 *
-	 * [--exclude-themes=<themes>]
-	 * : Comma-separated list of theme slugs to be excluded.
-	 */
-	public function do_minor_update( $args, $assoc_args ) {
-		$this->maybe_register_gh_command();
-
-		$types = array( 'plugin', 'theme' );
-
-		$update_data = array(
-			'header' => '',
-			'data' => array(),
-		);
-
-		$this->set_up_blacklist( $assoc_args );
-
-		foreach ( $types as $type ) {
-			$items = $this->get_available_updates_for_type( $type );
-
-			foreach ( $items as $item_data ) {
-				// Ignore items from blacklist.
-				if ( in_array( $item_data['name'], $this->update_blacklist[ $type ] ) ) {
-					continue;
-				}
-
-				$new_version = $item_data['update_version'];
-				$old_version = $item_data['version'];
-
-				$version_compare = $this->version_compare( $new_version, $old_version );
-
-				// Skip major updates.
-				if ( $version_compare['is_major_update'] ) {
-					continue;
-				}
-
-				$args = array( 'gh', $type, 'update', $item_data['name'] );
-
-				// Override locale so we can skip translation updates.
-				add_filter( 'locale', array( $this, 'set_locale' ) );
-
-				WP_CLI::run_command( $args, array() );
-
-				remove_filter( 'locale', array( $this, 'set_locale' ) );
-			}
-		}
 	}
 
 	/**
@@ -401,52 +271,6 @@ class OpenLab_Command extends WP_CLI_Command {
 		}
 
 		return $updates;
-	}
-
-	protected function generate_major_update_blog_post( $update_data, $assoc_args ) {
-		$update_strings = array();
-		foreach ( $update_data['data'] as $type => $type_data ) {
-			$update_strings[ $type ] = array();
-
-			foreach ( $type_data as $item ) {
-				$update_strings[ $type ][] = sprintf(
-					'<li>%s (%s)</li>',
-					$item['title'],
-					$item['update_series']
-				);
-
-				sort( $update_strings[ $type ] );
-			}
-		}
-
-		$text = '';
-		$pretty_date = date( 'F j, Y', strtotime( $assoc_args['date'] ) );
-
-		if ( ! empty( $update_strings['plugin'] ) ) {
-			$text .= sprintf(
-				"<p>The following plugins will receive major updates as part of the %s release of the CUNY Academic Commons, scheduled for %s:</p>\n<ul>%s</ul>",
-				$assoc_args['version'],
-				$pretty_date,
-				implode( "\n", $update_strings['plugin'] )
-			);
-		}
-
-		if ( ! empty( $update_strings['theme'] ) ) {
-			$text .= sprintf(
-				"\n\n<p>The following theme will receive major updates as part of the %s release of the CUNY Academic Commons, scheduled for %s:</p>\n<ul>%s</ul>",
-				$assoc_args['version'],
-				$pretty_date,
-				implode( "\n", $update_strings['theme'] )
-			);
-		}
-
-		$text .= "\n\n" . '<p>For more details on major update releases, please visit <a href="http://dev.commons.gc.cuny.edu/release-schedule-and-procedures/">our release schedule and procedures page</a>.</p>.';
-
-		$title = sprintf( 'Major plugin and theme updates for %s', $pretty_date );
-		return array(
-			'title' => $title,
-			'text' => $text,
-		);
 	}
 
 	protected function do_major_update_for_type( $type, $items ) {
