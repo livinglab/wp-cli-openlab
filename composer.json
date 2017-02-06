@@ -1,0 +1,30 @@
+{
+	"name": "livinglab/wp-cli-openlab",
+	"type": "command",
+	"description": "WP-CLI tools for the City Tech OpenLab",
+	"keywords": ["wp-cli"],
+	"homepage": "https://github.com/livinglab/wp-cli-openlab",
+	"require": {
+		"php": ">=5.3",
+		"boonebgorges/wp-cli-git-helper": "dev-master"
+	},
+	"minimum-stability": "dev",
+	"repositories": [
+		{
+		    "type": "vcs",
+		    "url": "https://github.com/boonebgorges/wp-cli-git-helper"
+		}
+        ],
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Boone B Gorges",
+			"email": "boone@gorg.es",
+			"homepage": "http://boone.gorg.es/"
+		}
+	],
+	"support": {
+		"issues": "https://github.com/livinglab/wp-cli-openlab/issues",
+		"source": "https://github.com/livinglab/wp-cli-openlab"
+	}
+}
